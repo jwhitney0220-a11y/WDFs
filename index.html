@@ -1,0 +1,1705 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="WetlandForm">
+<meta name="theme-color" content="#1a1f2e">
+<link rel="manifest" href="manifest.json">
+<title>USACE Wetland Data Form</title>
+<style>
+:root {
+  /* Professional navy/slate palette - no neon */
+  --bg:        #0f1318;
+  --surface:   #181d28;
+  --surface2:  #1e2535;
+  --surface3:  #242b3d;
+  --border:    #2c3347;
+  --border2:   #374060;
+  --accent:    #3a6ea8;
+  --accent2:   #5589c8;
+  --accent3:   #8ab4e8;
+  --text:      #d4dae8;
+  --text2:     #8e9ab5;
+  --text3:     #5a6480;
+  --ok:        #2e6b4a;
+  --ok-text:   #7dc4a0;
+  --warn:      #7a5a1e;
+  --warn-text: #d4a847;
+  --danger:    #7a2828;
+  --danger-text:#e07070;
+  --obl:       #1a4f7a;
+  --facw:      #1e6b9a;
+  --fac:       #2a6b48;
+  --facu:      #7a5a1e;
+  --upl:       #7a2828;
+  --r: 10px;
+  --font: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Segoe UI', sans-serif;
+  --safe-top: env(safe-area-inset-top, 0px);
+  --safe-bot: env(safe-area-inset-bottom, 0px);
+}
+* { box-sizing:border-box; margin:0; padding:0; -webkit-tap-highlight-color:transparent; }
+html,body { height:100%; background:var(--bg); color:var(--text); font-family:var(--font); font-size:15px; -webkit-font-smoothing:antialiased; overscroll-behavior:none; }
+
+/* ── LOADING ──────────────────────────────── */
+#loading-screen { position:fixed; inset:0; background:var(--bg); z-index:999; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:14px; }
+.load-icon { font-size:38px; }
+.load-title { font-size:16px; font-weight:600; color:var(--accent3); letter-spacing:.5px; }
+.load-sub { font-size:12px; color:var(--text3); }
+.load-bar { width:180px; height:2px; background:var(--border2); border-radius:1px; overflow:hidden; }
+.load-bar-fill { height:100%; background:var(--accent2); animation:lb 1.4s ease-in-out infinite; }
+@keyframes lb { 0%{width:0%} 60%{width:85%} 100%{width:100%} }
+
+/* ── TOPBAR ───────────────────────────────── */
+#topbar { position:fixed; top:0; left:0; right:0; z-index:100; background:#0f1318f0; backdrop-filter:blur(14px); -webkit-backdrop-filter:blur(14px); border-bottom:1px solid var(--border); padding:calc(var(--safe-top) + 10px) 14px 10px; display:flex; align-items:center; gap:10px; }
+#topbar-info { flex:1; min-width:0; }
+#topbar-title { font-size:14px; font-weight:700; color:var(--text); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+#topbar-sub { font-size:11px; color:var(--text3); margin-top:1px; }
+.top-btn { background:var(--surface2); border:1px solid var(--border2); color:var(--accent3); border-radius:8px; padding:6px 11px; font-size:12px; font-weight:600; cursor:pointer; white-space:nowrap; }
+.top-btn:active { opacity:.7; }
+.top-btn.primary { background:var(--accent); border-color:var(--accent2); color:#fff; }
+
+/* ── TABBAR ───────────────────────────────── */
+#tabbar { position:fixed; bottom:0; left:0; right:0; z-index:100; background:#0f1318f0; backdrop-filter:blur(14px); -webkit-backdrop-filter:blur(14px); border-top:1px solid var(--border); display:flex; padding-bottom:var(--safe-bot); }
+.tab { flex:1; display:flex; flex-direction:column; align-items:center; gap:3px; padding:8px 2px 6px; cursor:pointer; border:none; background:none; color:var(--text3); font-size:10px; font-weight:500; transition:color .15s; }
+.tab.active { color:var(--accent3); }
+.tab svg { width:21px; height:21px; }
+.tab-dot { width:4px; height:4px; border-radius:50%; background:var(--accent2); opacity:0; transition:opacity .15s; }
+.tab.active .tab-dot { opacity:1; }
+
+/* ── MAIN SCROLL ──────────────────────────── */
+#main { position:fixed; top:0; left:0; right:0; bottom:0; overflow-y:auto; -webkit-overflow-scrolling:touch; padding-top:calc(var(--safe-top) + 58px); padding-bottom:calc(var(--safe-bot) + 68px); }
+.panel { display:none; padding:0 12px; }
+.panel.active { display:block; }
+
+/* ── SECTION HEAD ─────────────────────────── */
+.sh { display:flex; align-items:center; gap:8px; margin:12px 0 6px; }
+.sh-line { flex:1; height:1px; background:var(--border); }
+.sh-label { font-size:10px; font-weight:700; color:var(--text3); text-transform:uppercase; letter-spacing:1px; white-space:nowrap; }
+
+/* ── CARDS ────────────────────────────────── */
+.card { background:var(--surface); border:1px solid var(--border); border-radius:var(--r); overflow:hidden; margin-bottom:8px; }
+.card-head { background:var(--surface2); border-bottom:1px solid var(--border); padding:8px 12px; font-size:11px; font-weight:700; color:var(--text2); text-transform:uppercase; letter-spacing:.6px; display:flex; align-items:center; justify-content:space-between; }
+.card-body { padding:10px 12px; }
+
+/* ── FORM FIELDS ──────────────────────────── */
+.field { margin-bottom:8px; }
+.field label { display:block; font-size:11px; font-weight:600; color:var(--text3); text-transform:uppercase; letter-spacing:.5px; margin-bottom:4px; }
+.field input,.field select,.field textarea { width:100%; background:var(--surface2); border:1px solid var(--border); border-radius:8px; color:var(--text); font-family:var(--font); font-size:15px; padding:10px 12px; -webkit-appearance:none; appearance:none; transition:border-color .15s; }
+.field input:focus,.field select:focus,.field textarea:focus { outline:none; border-color:var(--accent2); }
+.field textarea { resize:vertical; min-height:65px; }
+.field select { background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='10' viewBox='0 0 10 10'%3E%3Cpath fill='%235a6480' d='M5 7L0 2h10z'/%3E%3C/svg%3E"); background-repeat:no-repeat; background-position:right 10px center; padding-right:28px; }
+.row2 { display:grid; grid-template-columns:1fr 1fr; gap:8px; }
+.row3 { display:grid; grid-template-columns:1fr 1fr 1fr; gap:8px; }
+
+/* ── TOGGLE ───────────────────────────────── */
+.trow { display:flex; align-items:center; justify-content:space-between; background:var(--surface); border:1px solid var(--border); border-radius:8px; padding:10px 12px; margin-bottom:7px; }
+.trow-label { font-size:13px; color:var(--text2); }
+.toggle { position:relative; width:42px; height:24px; flex-shrink:0; }
+.toggle input { opacity:0; width:0; height:0; }
+.toggle-slider { position:absolute; inset:0; background:var(--border2); border-radius:12px; cursor:pointer; transition:background .2s; }
+.toggle-slider:before { content:''; position:absolute; left:3px; top:3px; width:18px; height:18px; background:#fff; border-radius:50%; transition:transform .2s; }
+.toggle input:checked + .toggle-slider { background:var(--accent); }
+.toggle input:checked + .toggle-slider:before { transform:translateX(18px); }
+
+/* ── PLANT ROWS ───────────────────────────── */
+.stratum-block { margin-bottom:12px; }
+.stratum-hdr { display:flex; align-items:center; justify-content:space-between; margin-bottom:5px; }
+.stratum-title { font-size:12px; font-weight:700; color:var(--accent3); text-transform:uppercase; letter-spacing:.6px; }
+.stratum-stats { font-size:11px; color:var(--text3); }
+.plant-row { background:var(--surface); border:1px solid var(--border); border-radius:8px; padding:9px; margin-bottom:5px; }
+.plant-top { display:flex; align-items:center; gap:7px; margin-bottom:6px; }
+.plant-num { font-size:11px; color:var(--text3); font-weight:700; min-width:18px; }
+.plant-search-wrap { flex:1; position:relative; }
+.plant-search { width:100%; background:var(--bg); border:1px solid var(--border); border-radius:7px; color:var(--text); font-size:14px; padding:7px 10px; }
+.plant-search:focus { outline:none; border-color:var(--accent2); }
+.badge { font-size:10px; font-weight:800; border-radius:5px; padding:3px 6px; min-width:40px; text-align:center; letter-spacing:.4px; flex-shrink:0; }
+.b-OBL  { background:var(--obl);  color:#a8d4f5; }
+.b-FACW { background:var(--facw); color:#a8d4f5; }
+.b-FAC  { background:var(--fac);  color:#a8d4f5; }
+.b-FACU { background:var(--facu); color:#f5d99a; }
+.b-UPL  { background:var(--upl);  color:#f5a8a8; }
+.b-    { background:var(--border2); color:var(--text3); }
+.plant-bottom { display:grid; grid-template-columns:1fr 70px; gap:6px; align-items:end; }
+.plant-sci { font-size:11px; font-style:italic; color:var(--text3); min-height:14px; }
+.sm-input { width:100%; background:var(--bg); border:1px solid var(--border); border-radius:7px; color:var(--text); font-size:14px; padding:7px 8px; }
+.sm-label { font-size:10px; color:var(--text3); display:block; margin-bottom:2px; }
+.dom-row { display:flex; align-items:center; gap:7px; margin-top:6px; }
+.dom-row input[type=checkbox] { width:17px; height:17px; accent-color:var(--accent2); }
+.dom-row label { font-size:12px; color:var(--text2); cursor:pointer; }
+.dom-auto { font-size:10px; color:var(--accent2); margin-left:4px; }
+.add-btn { width:100%; background:none; border:1px dashed var(--border2); border-radius:8px; color:var(--accent2); font-size:13px; padding:8px; cursor:pointer; margin-top:4px; }
+.add-btn:active { background:var(--surface2); }
+.plot-row { display:flex; align-items:center; gap:8px; margin-bottom:6px; font-size:12px; color:var(--text3); }
+.plot-row input { background:var(--bg); border:1px solid var(--border); border-radius:6px; color:var(--text); font-size:12px; padding:4px 8px; width:90px; }
+.plot-lock { font-size:10px; color:var(--accent2); margin-left:auto; }
+
+/* ── AUTOCOMPLETE ─────────────────────────── */
+.ac-dd { position:absolute; top:100%; left:0; right:0; z-index:200; background:var(--surface2); border:1px solid var(--accent); border-radius:8px; max-height:210px; overflow-y:auto; margin-top:2px; box-shadow:0 8px 24px #00000080; }
+.ac-item { padding:8px 11px; cursor:pointer; border-bottom:1px solid var(--border); display:flex; align-items:center; gap:8px; }
+.ac-item:last-child { border-bottom:none; }
+.ac-item:active { background:var(--surface3); }
+.ac-sci { font-size:13px; font-style:italic; color:var(--text); }
+.ac-com { font-size:11px; color:var(--text3); }
+
+/* ── SOIL LAYERS ──────────────────────────── */
+.layer-row { background:var(--surface); border:1px solid var(--border); border-radius:8px; padding:10px; margin-bottom:6px; }
+.layer-top { display:flex; align-items:center; gap:8px; margin-bottom:7px; }
+.layer-num { font-size:11px; color:var(--text3); font-weight:700; min-width:18px; }
+.layer-grid4 { display:grid; grid-template-columns:1fr 55px 1fr 1fr; gap:5px; }
+.layer-grid3 { display:grid; grid-template-columns:1fr 55px 1fr; gap:5px; }
+.layer-foot { font-size:10px; color:var(--text3); margin-top:5px; line-height:1.5; }
+
+/* ── HYDRIC INDICATORS ────────────────────── */
+.ind-grid { border:1px solid var(--border); border-radius:var(--r); overflow:hidden; margin-bottom:8px; }
+.ind-section { background:var(--surface2); border-bottom:1px solid var(--border); padding:6px 10px; font-size:10px; font-weight:700; color:var(--text3); text-transform:uppercase; letter-spacing:.7px; display:flex; align-items:center; gap:6px; }
+.ind-section.warn { color:var(--warn-text); }
+.ind-cols { display:grid; grid-template-columns:1fr 1fr; }
+.ind-item { display:flex; align-items:flex-start; gap:8px; padding:8px 10px; border-bottom:1px solid var(--border); border-right:1px solid var(--border); cursor:pointer; }
+.ind-item:nth-child(even) { border-right:none; }
+.ind-item:last-child,.ind-item:nth-last-child(2):nth-child(odd) { border-bottom:none; }
+.ind-item input[type=checkbox] { width:16px; height:16px; accent-color:var(--accent2); flex-shrink:0; margin-top:2px; }
+.ind-item label { font-size:11px; color:var(--text2); cursor:pointer; line-height:1.35; }
+.ind-code { font-weight:700; color:var(--accent3); }
+.ind-lrr { display:block; font-size:10px; color:var(--text3); margin-top:1px; }
+
+/* ── HYDRO INDICATORS ─────────────────────── */
+.hydro-grid { border:1px solid var(--border); border-radius:var(--r); overflow:hidden; margin-bottom:8px; }
+.hydro-section { background:var(--surface2); border-bottom:1px solid var(--border); padding:6px 10px; font-size:10px; font-weight:700; color:var(--text3); text-transform:uppercase; letter-spacing:.7px; }
+.hydro-cols { display:grid; grid-template-columns:1fr 1fr; }
+.hydro-item { display:flex; align-items:flex-start; gap:8px; padding:8px 10px; border-bottom:1px solid var(--border); border-right:1px solid var(--border); }
+.hydro-item:nth-child(even) { border-right:none; }
+.hydro-item input[type=checkbox] { width:16px; height:16px; accent-color:var(--accent2); flex-shrink:0; margin-top:2px; }
+.hydro-item label { font-size:11px; color:var(--text2); cursor:pointer; line-height:1.35; }
+
+/* ── FIELD OBS ────────────────────────────── */
+.fobs-card { background:var(--surface); border:1px solid var(--border); border-radius:8px; padding:10px 12px; margin-bottom:7px; }
+.fobs-row { display:flex; align-items:center; gap:8px; }
+.fobs-label { flex:1; font-size:13px; color:var(--text2); }
+.yn { background:var(--surface2); border:1px solid var(--border2); border-radius:6px; color:var(--text3); font-size:12px; font-weight:700; padding:5px 11px; cursor:pointer; transition:all .15s; }
+.yn.y.on { background:#1e4a30; border-color:var(--ok); color:var(--ok-text); }
+.yn.n.on { background:var(--danger); border-color:#a33; color:var(--danger-text); }
+.fobs-depth { display:flex; align-items:center; gap:6px; margin-top:7px; }
+.fobs-depth label { font-size:11px; color:var(--text3); white-space:nowrap; }
+.fobs-depth input { background:var(--bg); border:1px solid var(--border); border-radius:6px; color:var(--text); font-size:13px; padding:5px 8px; width:90px; }
+
+/* ── SUMMARY CARDS ────────────────────────── */
+.sum-card { border-radius:var(--r); padding:12px 14px; margin-bottom:8px; border:1px solid; }
+.sum-card.pass { border-color:#2e6b4a; background:#0f2a1c; }
+.sum-card.fail { border-color:#7a2828; background:#200f0f; }
+.sum-card.unk  { border-color:var(--border2); background:var(--surface); }
+.sum-card h3 { font-size:13px; font-weight:700; margin-bottom:4px; }
+.sum-card.pass h3 { color:var(--ok-text); }
+.sum-card.fail h3 { color:var(--danger-text); }
+.sum-card.unk  h3 { color:var(--text3); }
+.sum-val { font-size:22px; font-weight:800; letter-spacing:.5px; }
+.sum-detail { font-size:12px; color:var(--text3); margin-top:4px; line-height:1.55; }
+.det-box { border-radius:var(--r); padding:16px; text-align:center; margin-bottom:12px; border:2px solid; }
+.det-box.wetland { background:#0a1f14; border-color:#2e6b4a; }
+.det-box.upland  { background:#1f0a0a; border-color:#7a2828; }
+.det-box.unk     { background:var(--surface); border-color:var(--border2); }
+.det-label { font-size:11px; text-transform:uppercase; letter-spacing:1px; color:var(--text3); margin-bottom:4px; }
+.det-val { font-size:30px; font-weight:900; letter-spacing:1px; }
+.det-box.wetland .det-val { color:var(--ok-text); }
+.det-box.upland  .det-val { color:var(--danger-text); }
+.det-box.unk     .det-val { color:var(--text3); }
+
+/* ── PROJECT / RECORDS ────────────────────── */
+.proj-card { background:var(--surface); border:1px solid var(--border); border-radius:var(--r); padding:12px 14px; margin-bottom:7px; display:flex; align-items:center; gap:10px; cursor:pointer; }
+.proj-card:active { background:var(--surface2); }
+.proj-dot { width:10px; height:10px; border-radius:50%; flex-shrink:0; background:var(--accent2); }
+.proj-info { flex:1; min-width:0; }
+.proj-name { font-size:14px; font-weight:600; color:var(--text); }
+.proj-meta { font-size:11px; color:var(--text3); margin-top:2px; }
+.proj-del { background:none; border:none; color:var(--text3); font-size:18px; padding:4px 8px; cursor:pointer; }
+.dp-card { background:var(--surface2); border:1px solid var(--border); border-radius:8px; padding:10px 12px; margin-bottom:5px; display:flex; align-items:center; gap:10px; cursor:pointer; }
+.dp-card:active { background:var(--surface3); }
+.dp-dot { width:8px; height:8px; border-radius:50%; flex-shrink:0; }
+.dp-dot.wetland { background:var(--ok-text); }
+.dp-dot.upland  { background:var(--danger-text); }
+.dp-dot.unk     { background:var(--text3); }
+.dp-info { flex:1; }
+.dp-name { font-size:13px; font-weight:600; color:var(--text); }
+.dp-meta { font-size:11px; color:var(--text3); margin-top:1px; }
+
+/* ── MODAL ────────────────────────────────── */
+#modal-overlay { position:fixed; inset:0; background:#00000088; z-index:500; display:none; align-items:flex-end; }
+#modal-overlay.open { display:flex; }
+#modal { background:var(--surface); border-radius:20px 20px 0 0; padding:20px 16px calc(var(--safe-bot) + 20px); width:100%; max-height:90vh; overflow-y:auto; }
+.modal-title { font-size:16px; font-weight:700; color:var(--text); margin-bottom:14px; }
+.modal-btn { display:block; width:100%; padding:13px; border-radius:var(--r); font-size:15px; font-weight:700; text-align:center; cursor:pointer; border:none; margin-bottom:8px; }
+.modal-btn.primary { background:var(--accent); color:#fff; }
+.modal-btn.secondary { background:var(--surface2); border:1px solid var(--border2); color:var(--accent3); }
+.modal-btn.danger { background:var(--danger); color:var(--danger-text); }
+.modal-cancel { text-align:center; color:var(--text3); font-size:14px; padding:10px; cursor:pointer; margin-top:4px; }
+
+/* ── BTNS ─────────────────────────────────── */
+.btn { display:block; width:100%; padding:13px; border-radius:var(--r); font-size:15px; font-weight:700; text-align:center; cursor:pointer; border:none; margin-bottom:8px; }
+.btn:active { opacity:.8; }
+.btn.primary { background:var(--accent); color:#fff; }
+.btn.secondary { background:var(--surface2); border:1px solid var(--border2); color:var(--accent3); }
+.btn.export { background:#1a2f4a; border:1px solid #2a4a7a; color:var(--accent3); }
+.btn.danger { background:var(--danger); color:var(--danger-text); }
+.btn.sm { padding:7px 12px; font-size:12px; display:inline-block; width:auto; }
+
+/* ── GPS / SOIL AUTOFILL STATUS ───────────── */
+.autofill-row { display:flex; align-items:center; gap:8px; margin-bottom:8px; }
+.autofill-status { font-size:11px; color:var(--text3); flex:1; }
+.autofill-status.loading { color:var(--accent2); }
+.autofill-status.ok { color:var(--ok-text); }
+.autofill-status.err { color:var(--warn-text); }
+
+/* ── TOAST ────────────────────────────────── */
+#toast { position:fixed; bottom:calc(var(--safe-bot) + 72px); left:50%; transform:translateX(-50%) translateY(12px); background:var(--surface2); border:1px solid var(--border2); color:var(--accent3); border-radius:18px; padding:9px 18px; font-size:13px; font-weight:600; opacity:0; transition:opacity .25s,transform .25s; z-index:600; pointer-events:none; white-space:nowrap; }
+#toast.show { opacity:1; transform:translateX(-50%) translateY(0); }
+
+/* ── EMPTY STATE ──────────────────────────── */
+.empty { text-align:center; padding:40px 20px; color:var(--text3); }
+.empty-icon { font-size:36px; margin-bottom:10px; }
+.empty p { font-size:14px; line-height:1.6; }
+
+.spacer { height:12px; }
+</style>
+</head>
+<body>
+
+<!-- Loading -->
+<div id="loading-screen">
+  <div class="load-icon">🌿</div>
+  <div class="load-title">USACE Wetland Data Form</div>
+  <div class="load-sub" id="load-msg">Loading plant database…</div>
+  <div class="load-bar"><div class="load-bar-fill"></div></div>
+</div>
+
+<!-- Topbar -->
+<div id="topbar">
+  <div id="topbar-info">
+    <div id="topbar-title">USACE Wetland Forms</div>
+    <div id="topbar-sub">Select a project</div>
+  </div>
+  <button class="top-btn" id="save-btn" onclick="saveCurrentDP()" style="display:none">Save DP</button>
+  <button class="top-btn export" id="export-btn" onclick="exportCSV()" style="display:none">CSV</button>
+  <button class="top-btn primary" id="new-proj-btn" onclick="showNewProjectModal()">+ Project</button>
+</div>
+
+<!-- Tabbar -->
+<div id="tabbar">
+  <button class="tab active" onclick="switchTab('projects')" id="tab-projects">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/></svg>
+    Projects<div class="tab-dot"></div>
+  </button>
+  <button class="tab" onclick="switchTab('setup')" id="tab-setup">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14M4.93 4.93a10 10 0 0 0 0 14.14"/></svg>
+    Setup<div class="tab-dot"></div>
+  </button>
+  <button class="tab" onclick="switchTab('veg')" id="tab-veg">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22V12M12 12C12 7 17 3 17 3S14 8 12 12ZM12 12C12 7 7 3 7 3S10 8 12 12Z"/><path d="M5 22h14"/></svg>
+    Veg<div class="tab-dot"></div>
+  </button>
+  <button class="tab" onclick="switchTab('soil')" id="tab-soil">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg>
+    Soil<div class="tab-dot"></div>
+  </button>
+  <button class="tab" onclick="switchTab('hydro')" id="tab-hydro">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2.69l5.66 5.66a8 8 0 1 1-11.31 0z"/></svg>
+    Hydro<div class="tab-dot"></div>
+  </button>
+  <button class="tab" onclick="switchTab('summary')" id="tab-summary">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+    Summary<div class="tab-dot"></div>
+  </button>
+</div>
+
+<!-- Main -->
+<div id="main">
+
+<!-- ═══════ PROJECTS PANEL ═══════ -->
+<div class="panel active" id="panel-projects">
+  <div class="sh"><div class="sh-line"></div><span class="sh-label">Projects</span><div class="sh-line"></div></div>
+  <div id="projects-list"></div>
+  <div class="spacer"></div>
+</div>
+
+<!-- ═══════ SETUP PANEL ═══════ -->
+<div class="panel" id="panel-setup">
+
+  <!-- Data Point ID -->
+  <div class="sh"><div class="sh-line"></div><span class="sh-label">Data Point</span><div class="sh-line"></div></div>
+  <div class="row2">
+    <div class="field"><label>Sample Point ID</label><input type="text" id="dp-id" placeholder="DP-01" oninput="markDirty()"></div>
+    <div class="field"><label>Date</label><input type="date" id="dp-date" oninput="markDirty()"></div>
+  </div>
+  <div class="row2">
+    <div class="field"><label>Time</label><input type="time" id="dp-time" oninput="markDirty()"></div>
+    <div class="field"><label>Normal Conditions?</label>
+      <select id="dp-normal" onchange="markDirty()">
+        <option value="Yes">Yes – Normal</option>
+        <option value="No">No – Atypical</option>
+      </select>
+    </div>
+  </div>
+
+  <!-- GPS -->
+  <div class="sh"><div class="sh-line"></div><span class="sh-label">Coordinates</span><div class="sh-line"></div></div>
+  <div class="row3">
+    <div class="field"><label>Latitude</label><input type="number" id="dp-lat" placeholder="0.000000" step="0.000001" oninput="markDirty();clearSoilAuto()"></div>
+    <div class="field"><label>Longitude</label><input type="number" id="dp-lon" placeholder="-0.000000" step="0.000001" oninput="markDirty();clearSoilAuto()"></div>
+    <div class="field"><label>Datum</label>
+      <select id="dp-datum" onchange="markDirty()"><option>WGS84</option><option>NAD83</option><option>NAD27</option></select>
+    </div>
+  </div>
+  <div class="autofill-row">
+    <button class="btn secondary sm" onclick="getGPS()">📍 GPS</button>
+    <button class="btn secondary sm" onclick="lookupSoilData()">🌐 Lookup Soil</button>
+    <span class="autofill-status" id="soil-status">Enter coords then tap Lookup Soil</span>
+  </div>
+
+  <!-- Site Description -->
+  <div class="sh"><div class="sh-line"></div><span class="sh-label">Site Description</span><div class="sh-line"></div></div>
+  <div class="row2">
+    <div class="field"><label>Landform</label>
+      <select id="dp-landform" onchange="markDirty()">
+        <option value="">— Select —</option>
+        <option>Hillside</option><option>Terrace</option><option>Floodplain</option><option>Flat</option>
+        <option>Depression</option><option>Swale</option><option>Ridge</option><option>Interfluve</option>
+        <option>Channel</option><option>Playa</option><option>Other</option>
+      </select>
+    </div>
+    <div class="field"><label>Local Relief</label>
+      <select id="dp-relief" onchange="markDirty()">
+        <option value="">— Select —</option>
+        <option>Concave</option><option>Convex</option><option>None / Flat</option>
+      </select>
+    </div>
+  </div>
+  <div class="row2">
+    <div class="field"><label>Slope (%)</label><input type="number" id="dp-slope" placeholder="0" min="0" max="100" oninput="markDirty()"></div>
+    <div class="field"><label>Subregion (LRR/MLRA)</label><input type="text" id="dp-lrr" placeholder="e.g. LRR H / MLRA 80A" oninput="markDirty()"></div>
+  </div>
+  <div class="field"><label>Soil Map Unit Name</label><input type="text" id="dp-mapunit" placeholder="Auto-filled from coordinates, or enter manually" oninput="markDirty()"></div>
+
+  <!-- Disturbance -->
+  <div class="sh"><div class="sh-line"></div><span class="sh-label">Disturbance / Problematic Situations</span><div class="sh-line"></div></div>
+  <div class="row2">
+    <div class="trow" style="margin:0 0 6px"><span class="trow-label" style="font-size:12px">Veg disturbed?</span><label class="toggle"><input type="checkbox" id="dp-vdist" onchange="markDirty()"><span class="toggle-slider"></span></label></div>
+    <div class="trow" style="margin:0 0 6px"><span class="trow-label" style="font-size:12px">Soil disturbed?</span><label class="toggle"><input type="checkbox" id="dp-sdist" onchange="markDirty()"><span class="toggle-slider"></span></label></div>
+    <div class="trow" style="margin:0 0 6px"><span class="trow-label" style="font-size:12px">Hydro disturbed?</span><label class="toggle"><input type="checkbox" id="dp-hdist" onchange="markDirty()"><span class="toggle-slider"></span></label></div>
+    <div class="trow" style="margin:0 0 6px"><span class="trow-label" style="font-size:12px">Naturally problematic?</span><label class="toggle"><input type="checkbox" id="dp-natprob" onchange="markDirty()"><span class="toggle-slider"></span></label></div>
+  </div>
+  <div class="spacer"></div>
+</div><!-- /setup -->
+
+<!-- ═══════ VEGETATION PANEL ═══════ -->
+<div class="panel" id="panel-veg">
+
+  <!-- Tree -->
+  <div class="sh"><div class="sh-line"></div><span class="sh-label">Tree Stratum</span><div class="sh-line"></div></div>
+  <div class="stratum-block">
+    <div class="stratum-hdr">
+      <span class="stratum-title">🌳 Tree</span>
+      <span class="stratum-stats" id="meta-Tree">Cover: 0% | Dom: 0/0</span>
+    </div>
+    <div class="plot-row">
+      Plot size: <input type="text" id="plot-Tree" value="30 ft radius" oninput="markDirty()">
+      <span class="plot-lock" id="plot-Tree-lock">default</span>
+    </div>
+    <div id="plants-Tree"></div>
+    <button class="add-btn" onclick="addPlant('Tree')">+ Add Tree Species</button>
+  </div>
+
+  <!-- Sapling/Shrub -->
+  <div class="sh"><div class="sh-line"></div><span class="sh-label">Sapling / Shrub Stratum</span><div class="sh-line"></div></div>
+  <div class="stratum-block">
+    <div class="stratum-hdr">
+      <span class="stratum-title">🌿 Sapling / Shrub</span>
+      <span class="stratum-stats" id="meta-Sapling/Shrub">Cover: 0% | Dom: 0/0</span>
+    </div>
+    <div class="plot-row">
+      Plot size: <input type="text" id="plot-Sapling/Shrub" value="15 ft radius" oninput="markDirty()">
+      <span class="plot-lock" id="plot-Sapling/Shrub-lock">default</span>
+    </div>
+    <div id="plants-Sapling/Shrub"></div>
+    <button class="add-btn" onclick="addPlant('Sapling/Shrub')">+ Add Sapling / Shrub Species</button>
+  </div>
+
+  <!-- Herb -->
+  <div class="sh"><div class="sh-line"></div><span class="sh-label">Herb Stratum</span><div class="sh-line"></div></div>
+  <div class="stratum-block">
+    <div class="stratum-hdr">
+      <span class="stratum-title">🌱 Herb</span>
+      <span class="stratum-stats" id="meta-Herb">Cover: 0% | Dom: 0/0</span>
+    </div>
+    <div class="plot-row">
+      Plot size: <input type="text" id="plot-Herb" value="5 ft radius" oninput="markDirty()">
+      <span class="plot-lock" id="plot-Herb-lock">default</span>
+    </div>
+    <div id="plants-Herb"></div>
+    <button class="add-btn" onclick="addPlant('Herb')">+ Add Herb Species</button>
+  </div>
+
+  <!-- Woody Vine -->
+  <div class="sh"><div class="sh-line"></div><span class="sh-label">Woody Vine Stratum</span><div class="sh-line"></div></div>
+  <div class="stratum-block">
+    <div class="stratum-hdr">
+      <span class="stratum-title">🌾 Woody Vine</span>
+      <span class="stratum-stats" id="meta-Woody Vine">Cover: 0% | Dom: 0/0</span>
+    </div>
+    <div class="plot-row">
+      Plot size: <input type="text" id="plot-Woody Vine" value="30 ft radius" oninput="markDirty()">
+      <span class="plot-lock" id="plot-Woody Vine-lock">default</span>
+    </div>
+    <div id="plants-Woody Vine"></div>
+    <button class="add-btn" onclick="addPlant('Woody Vine')">+ Add Woody Vine Species</button>
+  </div>
+
+  <div class="sh"><div class="sh-line"></div><span class="sh-label">Other</span><div class="sh-line"></div></div>
+  <div class="row2">
+    <div class="field"><label>% Bare Ground (Herb Stratum)</label><input type="number" id="bare-ground" placeholder="0" min="0" max="100" oninput="markDirty()"></div>
+  </div>
+  <div class="field"><label>Vegetation Remarks</label><textarea id="veg-remarks" oninput="markDirty()"></textarea></div>
+
+  <!-- Live veg analysis -->
+  <div class="card">
+    <div class="card-head">Dominance Test <span id="dom-badge" style="font-size:11px;padding:2px 8px;border-radius:5px;background:var(--surface3);">—</span></div>
+    <div class="card-body"><div id="dom-result" style="font-size:12px;color:var(--text3);">Add plants to calculate.</div></div>
+  </div>
+  <div class="card">
+    <div class="card-head">Prevalence Index <span id="pi-badge" style="font-size:11px;padding:2px 8px;border-radius:5px;background:var(--surface3);">—</span></div>
+    <div class="card-body"><div id="pi-result" style="font-size:12px;color:var(--text3);">Add plants with cover to calculate.</div></div>
+  </div>
+  <div class="spacer"></div>
+</div><!-- /veg -->
+
+<!-- ═══════ SOIL PANEL ═══════ -->
+<div class="panel" id="panel-soil">
+  <div class="sh"><div class="sh-line"></div><span class="sh-label">Profile Description (Layers)</span><div class="sh-line"></div></div>
+  <div id="layers-list"></div>
+  <button class="add-btn" onclick="addLayer()">+ Add Soil Layer</button>
+
+  <div class="sh" style="margin-top:14px"><div class="sh-line"></div><span class="sh-label">Hydric Soil Indicators — Great Plains</span><div class="sh-line"></div></div>
+  <div class="ind-grid" id="hydric-grid"></div>
+
+  <div class="sh"><div class="sh-line"></div><span class="sh-label">Restrictive Layer</span><div class="sh-line"></div></div>
+  <div class="row2">
+    <div class="field"><label>Type</label><input type="text" id="restrict-type" placeholder="e.g. Claypan, Caliche" oninput="markDirty()"></div>
+    <div class="field"><label>Depth (inches)</label><input type="number" id="restrict-depth" placeholder="—" oninput="markDirty()"></div>
+  </div>
+  <div class="trow">
+    <span class="trow-label">Hydric Soils Present?</span>
+    <label class="toggle"><input type="checkbox" id="hydric-present" onchange="updateSummary();markDirty()"><span class="toggle-slider"></span></label>
+  </div>
+  <div class="field"><label>Soil Remarks</label><textarea id="soil-remarks" oninput="markDirty()"></textarea></div>
+  <div class="spacer"></div>
+</div><!-- /soil -->
+
+<!-- ═══════ HYDROLOGY PANEL ═══════ -->
+<div class="panel" id="panel-hydro">
+  <div class="sh"><div class="sh-line"></div><span class="sh-label">Wetland Hydrology Indicators</span><div class="sh-line"></div></div>
+  <div class="hydro-grid" id="hydro-grid"></div>
+
+  <div class="sh" style="margin-top:10px"><div class="sh-line"></div><span class="sh-label">Field Observations</span><div class="sh-line"></div></div>
+  <div class="fobs-card">
+    <div class="fobs-row">
+      <span class="fobs-label">Surface Water Present? <span style="font-size:10px;color:var(--text3)">(A1)</span></span>
+      <button class="yn y" id="sw-y" onclick="setFobs('sw','yes')">Yes</button>
+      <button class="yn n" id="sw-n" onclick="setFobs('sw','no')">No</button>
+    </div>
+    <div class="fobs-depth"><label>Depth (in):</label><input type="number" id="sw-depth" placeholder="—" oninput="markDirty()"></div>
+  </div>
+  <div class="fobs-card">
+    <div class="fobs-row">
+      <span class="fobs-label">Water Table Present? <span style="font-size:10px;color:var(--text3)">(A2)</span></span>
+      <button class="yn y" id="wt-y" onclick="setFobs('wt','yes')">Yes</button>
+      <button class="yn n" id="wt-n" onclick="setFobs('wt','no')">No</button>
+    </div>
+    <div class="fobs-depth"><label>Depth (in):</label><input type="number" id="wt-depth" placeholder="—" oninput="markDirty()"></div>
+  </div>
+  <div class="fobs-card">
+    <div class="fobs-row">
+      <span class="fobs-label">Saturation Present? <span style="font-size:10px;color:var(--text3)">(A3)</span></span>
+      <button class="yn y" id="sat-y" onclick="setFobs('sat','yes')">Yes</button>
+      <button class="yn n" id="sat-n" onclick="setFobs('sat','no')">No</button>
+    </div>
+    <div class="fobs-depth"><label>Depth (in):</label><input type="number" id="sat-depth" placeholder="—" oninput="markDirty()"></div>
+  </div>
+  <div class="trow" style="margin-top:4px">
+    <span class="trow-label">Wetland Hydrology Present?</span>
+    <label class="toggle"><input type="checkbox" id="hydro-present" onchange="updateSummary();markDirty()"><span class="toggle-slider"></span></label>
+  </div>
+  <div class="field"><label>Recorded Data (gage, monitoring, etc.)</label><textarea id="hydro-recorded" oninput="markDirty()"></textarea></div>
+  <div class="field"><label>Hydrology Remarks</label><textarea id="hydro-remarks" oninput="markDirty()"></textarea></div>
+  <div class="spacer"></div>
+</div><!-- /hydro -->
+
+<!-- ═══════ SUMMARY PANEL ═══════ -->
+<div class="panel" id="panel-summary">
+  <div class="sh"><div class="sh-line"></div><span class="sh-label">Wetland Determination</span><div class="sh-line"></div></div>
+  <div class="det-box unk" id="det-box">
+    <div class="det-label">Final Determination</div>
+    <div class="det-val" id="det-val">PENDING</div>
+  </div>
+  <div class="sum-card unk" id="sum-veg">
+    <h3>🌿 Hydrophytic Vegetation</h3>
+    <div class="sum-val" id="sum-veg-val">—</div>
+    <div class="sum-detail" id="sum-veg-detail">No vegetation data entered.</div>
+  </div>
+  <div class="sum-card unk" id="sum-soil">
+    <h3>🪨 Hydric Soils</h3>
+    <div class="sum-val" id="sum-soil-val">—</div>
+    <div class="sum-detail" id="sum-soil-detail">No soil data entered.</div>
+  </div>
+  <div class="sum-card unk" id="sum-hydro">
+    <h3>💧 Wetland Hydrology</h3>
+    <div class="sum-val" id="sum-hydro-val">—</div>
+    <div class="sum-detail" id="sum-hydro-detail">No hydrology data entered.</div>
+  </div>
+  <div class="card">
+    <div class="card-head">Dominance Test Detail</div>
+    <div class="card-body"><div id="sum-dom" style="font-size:12px;color:var(--text3);line-height:1.6;">—</div></div>
+  </div>
+  <div class="card">
+    <div class="card-head">Prevalence Index Detail</div>
+    <div class="card-body"><div id="sum-pi" style="font-size:12px;color:var(--text3);line-height:1.6;">—</div></div>
+  </div>
+  <div class="field" style="margin-top:8px"><label>Final Remarks</label><textarea id="final-remarks" oninput="markDirty()"></textarea></div>
+  <button class="btn export" onclick="exportCSV()">⬇ Export CSV</button>
+  <button class="btn primary" onclick="saveCurrentDP()">💾 Save Data Point</button>
+  <div class="spacer"></div>
+</div><!-- /summary -->
+
+</div><!-- /main -->
+
+<!-- Modal -->
+<div id="modal-overlay" onclick="closeModal()">
+  <div id="modal" onclick="event.stopPropagation()">
+    <div class="modal-title" id="modal-title">New Project</div>
+    <div id="modal-body"></div>
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<script>
+// ═══════════════════════════════════════════════════════
+//  PLANT DATABASE
+// ═══════════════════════════════════════════════════════
+let PLANTS = [];
+let PLANT_IDX = {};
+
+async function loadPlants() {
+  const r = await fetch('./plants.json');
+  PLANTS = await r.json();
+  for (const [sci, com, ind] of PLANTS) {
+    const e = {s:sci, c:com, i:ind};
+    PLANT_IDX[sci.toLowerCase()] = e;
+    if (com) PLANT_IDX[com.toLowerCase()] = e;
+  }
+  document.getElementById('loading-screen').style.display = 'none';
+  buildHydricGrid();
+  buildHydroGrid();
+  loadAllData();
+}
+
+function searchPlants(q, n=14) {
+  if (q.length < 2) return [];
+  const ql = q.toLowerCase();
+  const seen = new Set(), res = [];
+  const add = (s,c,i) => { if (!seen.has(s) && res.length < n) { res.push({s,c,i}); seen.add(s); } };
+  for (const [s,c,i] of PLANTS) { if (s.toLowerCase().startsWith(ql)) add(s,c,i); }
+  for (const [s,c,i] of PLANTS) { if (c && c.toLowerCase().startsWith(ql)) add(s,c,i); }
+  for (const [s,c,i] of PLANTS) { if (s.toLowerCase().includes(ql) || (c && c.toLowerCase().includes(ql))) add(s,c,i); }
+  return res;
+}
+
+// ═══════════════════════════════════════════════════════
+//  STATE
+// ═══════════════════════════════════════════════════════
+let projects = {};      // {id: {name, applicant, investigator, county, state, form_type, dps:{id:dpData}}}
+let currentProjectId = null;
+let currentDPId = null;
+let dirty = false;
+
+// Per-DP state (reset on new DP)
+const STRATA = ['Tree','Sapling/Shrub','Herb','Woody Vine'];
+const PLOT_DEFAULTS = {'Tree':'30 ft radius','Sapling/Shrub':'15 ft radius','Herb':'5 ft radius','Woody Vine':'30 ft radius'};
+let plants = {'Tree':[],'Sapling/Shrub':[],'Herb':[],'Woody Vine':[]};
+let plantCtr = 0;
+let layers = [];
+let layerCtr = 0;
+let hydricChecked = {};
+let hydroChecked = {};
+let fobs = {sw:null, wt:null, sat:null};
+
+// ═══════════════════════════════════════════════════════
+//  HYDRIC SOIL INDICATORS — Great Plains (ERDC/EL TR-10-1 v2.0 + FIHS v9.0)
+// ═══════════════════════════════════════════════════════
+// [code, label, lrr, category, isProblem]
+const HYDRIC_DEFS = [
+  // ALL SOILS
+  ['A1',  'Histosol',                     'All LRRs',              'All Soils',       false],
+  ['A2',  'Histic Epipedon',              'All LRRs',              'All Soils',       false],
+  ['A3',  'Black Histic',                 'All LRRs',              'All Soils',       false],
+  ['A4',  'Hydrogen Sulfide',             'All LRRs',              'All Soils',       false],
+  ['A5',  'Stratified Layers',            'LRR F only',            'All Soils',       false],
+  ['A9',  '1 cm Muck',                    'LRR F, G, H',           'All Soils',       false],
+  ['A11', 'Depleted Below Dark Surface',  'All LRRs',              'All Soils',       false],
+  ['A12', 'Thick Dark Surface',           'All LRRs',              'All Soils',       false],
+  ['A18', 'Iron Monosulfide',             'All LRRs (FIHS v9.0)',  'All Soils',       false],
+  // SANDY SOILS
+  ['S1',  'Sandy Mucky Mineral',          'All LRRs',              'Sandy Soils',     false],
+  ['S2',  '2.5 cm Mucky Peat or Peat',   'LRR G, H',              'Sandy Soils',     false],
+  ['S3',  '5 cm Mucky Peat or Peat',     'LRR F',                 'Sandy Soils',     false],
+  ['S4',  'Sandy Gleyed Matrix',          'All LRRs',              'Sandy Soils',     false],
+  ['S5',  'Sandy Redox',                  'All LRRs',              'Sandy Soils',     false],
+  ['S6',  'Stripped Matrix',              'All LRRs',              'Sandy Soils',     false],
+  // LOAMY & CLAYEY
+  ['F1',  'Loamy Mucky Mineral',          'All LRRs',              'Loamy & Clayey',  false],
+  ['F2',  'Loamy Gleyed Matrix',          'All LRRs',              'Loamy & Clayey',  false],
+  ['F3',  'Depleted Matrix',              'All LRRs',              'Loamy & Clayey',  false],
+  ['F6',  'Redox Dark Surface',           'All LRRs',              'Loamy & Clayey',  false],
+  ['F7',  'Depleted Dark Surface',        'All LRRs',              'Loamy & Clayey',  false],
+  ['F8',  'Redox Depressions',            'All LRRs',              'Loamy & Clayey',  false],
+  ['F16', 'High Plains Depressions',      'MLRA 72 & 73 (LRR H)', 'Loamy & Clayey',  false],
+  // PROBLEM SOILS — require additional documentation
+  ['A9',  '1 cm Muck',                   'LRR F, G, H',           'Problem Soils',   true],
+  ['A16', 'Coast Prairie Redox',          'LRR G, H (MLRA 78)',    'Problem Soils',   true],
+  ['S7',  'Dark Surface',                 'All LRRs',              'Problem Soils',   true],
+  ['F16', 'High Plains Depressions',      'MLRA 72 & 73 (LRR H)', 'Problem Soils',   true],
+  ['F18', 'Reduced Vertic',               'LRR H (MLRA 78)',       'Problem Soils',   true],
+  ['TF2', 'Red Parent Material',          'LRR H, I, J',           'Problem Soils',   true],
+  ['TF12','Very Shallow Dark Surface',    'LRR G, H (MLRA 72,73)','Problem Soils',   true],
+];
+
+function buildHydricGrid() {
+  const grid = document.getElementById('hydric-grid');
+  grid.innerHTML = '';
+  let lastCat = null;
+  HYDRIC_DEFS.forEach((d,i) => {
+    const [code, label, lrr, cat, isProb] = d;
+    const key = `${code}|${label}|${i}`;
+    if (cat !== lastCat) {
+      lastCat = cat;
+      const sec = document.createElement('div');
+      sec.className = 'ind-section' + (isProb ? ' warn' : '');
+      sec.innerHTML = isProb
+        ? `<span>⚠</span> Problem Soils — ${cat} <span style="font-weight:400;color:var(--text3)">(requires additional documentation)</span>`
+        : cat;
+      const cols = document.createElement('div');
+      cols.className = 'ind-cols';
+      cols.id = 'hydric-cols-' + cat.replace(/\W/g,'_');
+      grid.appendChild(sec);
+      grid.appendChild(cols);
+    }
+    const colsEl = grid.querySelector('#hydric-cols-' + cat.replace(/\W/g,'_'));
+    const item = document.createElement('div');
+    item.className = 'ind-item';
+    item.innerHTML = `
+      <input type="checkbox" id="h-${i}" onchange="onHydricChange('${key}',this.checked)">
+      <label for="h-${i}">
+        <span class="ind-code">${code}</span> – ${label}
+        <span class="ind-lrr">${lrr}</span>
+      </label>`;
+    colsEl.appendChild(item);
+  });
+}
+
+function onHydricChange(key, checked) {
+  hydricChecked[key] = checked;
+  // Auto-set hydric present if any non-problem indicator is checked
+  const anyNormal = HYDRIC_DEFS.some((d,i) => !d[4] && hydricChecked[`${d[0]}|${d[1]}|${i}`]);
+  document.getElementById('hydric-present').checked = anyNormal;
+  updateSummary();
+  markDirty();
+}
+
+// ═══════════════════════════════════════════════════════
+//  HYDROLOGY INDICATORS — Great Plains
+// ═══════════════════════════════════════════════════════
+// [code, label, isPrimary]
+const HYDRO_DEFS = [
+  // PRIMARY (minimum 1 required)
+  ['A1',  'Surface Water',                             true],
+  ['A2',  'High Water Table',                          true],
+  ['A3',  'Saturation',                                true],
+  ['B1',  'Water Marks',                               true],
+  ['B2',  'Sediment Deposits',                         true],
+  ['B3',  'Drift Deposits',                            true],
+  ['B4',  'Algal Mat or Crust',                        true],
+  ['B5',  'Iron Deposits',                             true],
+  ['B7',  'Inundation Visible on Aerial Imagery',      true],
+  ['B9',  'Water-Stained Leaves',                      true],
+  ['B11', 'Salt Crust',                                true],
+  ['B13', 'Aquatic Invertebrates',                     true],
+  ['C1',  'Hydrogen Sulfide Odor',                     true],
+  // SECONDARY (minimum 2 required)
+  ['B6',  'Surface Soil Cracks',                       false],
+  ['B8',  'Sparsely Vegetated Concave Surface',        false],
+  ['B10', 'Drainage Patterns',                         false],
+  ['C2',  'Dry-Season Water Table',                    false],
+  ['C3',  'Oxidized Rhizospheres on Living Roots',     false],
+  ['C4',  'Presence of Reduced Iron',                  false],
+  ['C7',  'Thin Muck Surface',                         false],
+  ['C8',  'Crayfish Burrows',                          false],
+  ['C9',  'Saturation Visible on Aerial Imagery',      false],
+  ['D2',  'Geomorphic Position',                       false],
+  ['D5',  'FAC-Neutral Test',                          false],
+  ['D7',  'Frost-Heave Hummocks (LRR F)',              false],
+  ['OT',  'Other (Explain in Remarks)',                false],
+];
+
+function buildHydroGrid() {
+  const grid = document.getElementById('hydro-grid');
+  grid.innerHTML = '';
+  let lastPrimary = null;
+  HYDRO_DEFS.forEach((d,i) => {
+    const [code, label, isPrim] = d;
+    const key = `${code}|${i}`;
+    if (isPrim !== lastPrimary) {
+      lastPrimary = isPrim;
+      const sec = document.createElement('div');
+      sec.className = 'hydro-section';
+      sec.textContent = isPrim
+        ? 'Primary Indicators — minimum 1 required'
+        : 'Secondary Indicators — minimum 2 required';
+      const cols = document.createElement('div');
+      cols.className = 'hydro-cols';
+      cols.id = 'hydro-cols-' + (isPrim ? 'prim' : 'sec');
+      grid.appendChild(sec);
+      grid.appendChild(cols);
+    }
+    const colsEl = document.getElementById('hydro-cols-' + (isPrim ? 'prim' : 'sec'));
+    const item = document.createElement('div');
+    item.className = 'hydro-item';
+    item.innerHTML = `
+      <input type="checkbox" id="hd-${i}" onchange="onHydroChange('${key}',this.checked,${isPrim})">
+      <label for="hd-${i}"><span class="ind-code">${code}</span> – ${label}</label>`;
+    colsEl.appendChild(item);
+  });
+}
+
+function onHydroChange(key, checked, isPrim) {
+  hydroChecked[key] = checked;
+  // A1/A2/A3 indicators drive field observations
+  const a1 = hydroChecked[`A1|0`];
+  const a2 = hydroChecked[`A2|1`];
+  const a3 = hydroChecked[`A3|2`];
+  if (a1 !== undefined || a2 !== undefined || a3 !== undefined) {
+    if (a1) setFobs('sw','yes',false); else if (a1 === false) setFobs('sw','no',false);
+    if (a2) setFobs('wt','yes',false); else if (a2 === false) setFobs('wt','no',false);
+    if (a3) setFobs('sat','yes',false); else if (a3 === false) setFobs('sat','no',false);
+  }
+  autoHydroPresent();
+  markDirty();
+}
+
+function autoHydroPresent() {
+  const primCount = HYDRO_DEFS.filter((d,i) => d[2] && hydroChecked[`${d[0]}|${i}`]).length;
+  const secCount  = HYDRO_DEFS.filter((d,i) => !d[2] && hydroChecked[`${d[0]}|${i}`]).length;
+  const pass = primCount >= 1 || secCount >= 2;
+  document.getElementById('hydro-present').checked = pass;
+  updateSummary();
+}
+
+// ═══════════════════════════════════════════════════════
+//  FIELD OBS Y/N — linked to A1/A2/A3
+// ═══════════════════════════════════════════════════════
+function setFobs(field, val, updateIndicator=true) {
+  fobs[field] = val;
+  const map = {sw:'y',wt:'y',sat:'y'};
+  ['y','n'].forEach(v => {
+    const btn = document.getElementById(`${field}-${v}`);
+    if (btn) btn.className = 'yn ' + v + (v === (val==='yes'?'y':'n') ? ' on' : '');
+  });
+  // Sync A1/A2/A3 hydro checkboxes
+  if (updateIndicator) {
+    const idxMap = {sw:0, wt:1, sat:2};
+    const idx = idxMap[field];
+    const key = `${HYDRO_DEFS[idx][0]}|${idx}`;
+    const checked = val === 'yes';
+    hydroChecked[key] = checked;
+    const el = document.getElementById(`hd-${idx}`);
+    if (el) el.checked = checked;
+    autoHydroPresent();
+  }
+  markDirty();
+}
+
+// ═══════════════════════════════════════════════════════
+//  PLANT ROWS + DOMINANCE TEST
+// ═══════════════════════════════════════════════════════
+const WET_IND = new Set(['OBL','FACW','FAC']);
+const PREV_W  = {OBL:1, FACW:2, FAC:3, FACU:4, UPL:5};
+
+function addPlant(stratum) {
+  const id = ++plantCtr;
+  const row = {id, sci:'', common:'', indicator:'', cover:'', dominant:false, autodom:false};
+  plants[stratum].push(row);
+  renderPlantRow(stratum, row);
+  markDirty();
+}
+
+function renderPlantRow(stratum, row) {
+  const container = document.getElementById('plants-' + stratum);
+  const num = plants[stratum].indexOf(row) + 1;
+  const div = document.createElement('div');
+  div.className = 'plant-row';
+  div.id = 'pr-' + row.id;
+  div.innerHTML = `
+    <div class="plant-top">
+      <span class="plant-num">${num}.</span>
+      <div class="plant-search-wrap">
+        <input class="plant-search" type="text" placeholder="Search species (scientific or common)…"
+          value="${row.sci || ''}"
+          oninput="onPlantSearch(this,${row.id},'${stratum}')"
+          onfocus="onPlantSearch(this,${row.id},'${stratum}')"
+          onblur="setTimeout(()=>closeAC(${row.id}),180)"
+          autocomplete="off" autocorrect="off" spellcheck="false">
+        <div class="ac-dd" id="ac-${row.id}" style="display:none"></div>
+      </div>
+      <span class="badge b-${row.indicator||''}" id="badge-${row.id}">${row.indicator||'—'}</span>
+      <button style="background:none;border:none;color:var(--text3);font-size:20px;cursor:pointer;padding:2px 6px" onclick="removePlant('${stratum}',${row.id})">×</button>
+    </div>
+    <div class="plant-bottom">
+      <div>
+        <div class="sm-label">Scientific Name</div>
+        <div class="plant-sci" id="sci-${row.id}">${row.sci ? row.common : ''}</div>
+      </div>
+      <div>
+        <div class="sm-label">Cover %</div>
+        <input class="sm-input" type="number" min="0" max="100" placeholder="0"
+          value="${row.cover||''}" id="cov-${row.id}"
+          oninput="onCoverChange(${row.id},'${stratum}',this.value)" style="text-align:center">
+      </div>
+    </div>
+    <div class="dom-row">
+      <input type="checkbox" id="dom-${row.id}" ${row.dominant?'checked':''} onchange="onDomChange(${row.id},'${stratum}',this.checked)">
+      <label for="dom-${row.id}">Dominant</label>
+      <span class="dom-auto" id="dom-auto-${row.id}">${row.autodom?'(auto)':''}</span>
+    </div>`;
+  container.appendChild(div);
+}
+
+function onPlantSearch(input, id, stratum) {
+  const q = input.value;
+  const results = searchPlants(q);
+  const dd = document.getElementById('ac-' + id);
+  if (!results.length || q.length < 2) { dd.style.display='none'; return; }
+  dd.innerHTML = '';
+  results.forEach(r => {
+    const item = document.createElement('div');
+    item.className = 'ac-item';
+    item.innerHTML = `<span class="badge b-${r.i}" style="font-size:10px">${r.i}</span><div><div class="ac-sci">${r.s}</div><div class="ac-com">${r.c}</div></div>`;
+    item.onmousedown = () => selectPlant(id, stratum, r, input);
+    dd.appendChild(item);
+  });
+  dd.style.display = 'block';
+}
+
+function selectPlant(id, stratum, r, input) {
+  const row = plants[stratum].find(p => p.id === id);
+  if (!row) return;
+  row.sci = r.s; row.common = r.c; row.indicator = r.i;
+  input.value = r.s;
+  document.getElementById('badge-' + id).textContent = r.i || '—';
+  document.getElementById('badge-' + id).className = 'badge b-' + (r.i||'');
+  document.getElementById('sci-' + id).textContent = r.c;
+  closeAC(id);
+  calcAndApplyDominance();
+  markDirty();
+}
+
+function closeAC(id) { const dd=document.getElementById('ac-'+id); if(dd) dd.style.display='none'; }
+
+function onCoverChange(id, stratum, val) {
+  const row = plants[stratum].find(p => p.id === id);
+  if (!row) return;
+  row.cover = parseFloat(val) || 0;
+  calcAndApplyDominance();
+  markDirty();
+}
+
+function onDomChange(id, stratum, checked) {
+  const row = plants[stratum].find(p => p.id === id);
+  if (row) { row.dominant = checked; row.autodom = false; calcDominanceTest(); markDirty(); }
+}
+
+function removePlant(stratum, id) {
+  plants[stratum] = plants[stratum].filter(p => p.id !== id);
+  const el = document.getElementById('pr-' + id);
+  if (el) el.remove();
+  renumberPlants(stratum);
+  calcAndApplyDominance();
+  markDirty();
+}
+
+function renumberPlants(stratum) {
+  const container = document.getElementById('plants-' + stratum);
+  container.querySelectorAll('.plant-num').forEach((el,i) => el.textContent = (i+1) + '.');
+}
+
+// 50/20 Rule: auto-mark dominant species
+function calcAndApplyDominance() {
+  STRATA.forEach(stratum => {
+    const rows = plants[stratum].filter(r => r.sci && (parseFloat(r.cover)||0) > 0);
+    const total = rows.reduce((s,r) => s + (parseFloat(r.cover)||0), 0);
+    const sorted = [...rows].sort((a,b) => (parseFloat(b.cover)||0) - (parseFloat(a.cover)||0));
+    const domIds = new Set();
+    let cum = 0;
+    for (const r of sorted) {
+      if (cum < total * 0.5) {
+        domIds.add(r.id);
+        cum += parseFloat(r.cover)||0;
+      }
+    }
+    // First species exceeding 20% rule — if first alone exceeds, it's dominant
+    // The 50/20 rule: enough species to account for >50% cumulative cover (working from highest),
+    // PLUS any additional species ≥20% absolute cover
+    for (const r of sorted) {
+      if ((parseFloat(r.cover)||0) >= 20) domIds.add(r.id);
+    }
+    // Apply auto-dom flags
+    for (const r of plants[stratum]) {
+      const shouldBeDom = domIds.has(r.id);
+      if (r.autodom || !r.dominant) { // only update if currently auto-controlled
+        r.dominant = shouldBeDom;
+        r.autodom = true;
+      }
+      const cb = document.getElementById('dom-' + r.id);
+      const au = document.getElementById('dom-auto-' + r.id);
+      if (cb) cb.checked = r.dominant;
+      if (au) au.textContent = r.autodom ? '(auto)' : '';
+    }
+    updateStratumMeta(stratum);
+  });
+  calcDominanceTest();
+  calcPrevalenceIndex();
+}
+
+function updateStratumMeta(stratum) {
+  const rows = plants[stratum];
+  const total = rows.reduce((s,r) => s + (parseFloat(r.cover)||0), 0);
+  const doms = rows.filter(r => r.dominant && r.sci).length;
+  const total_sp = rows.filter(r => r.sci).length;
+  const el = document.getElementById('meta-' + stratum);
+  if (el) el.textContent = `Cover: ${total.toFixed(0)}% | Dom: ${doms}/${total_sp}`;
+}
+
+// ═══════════════════════════════════════════════════════
+//  DOMINANCE TEST
+// ═══════════════════════════════════════════════════════
+function calcDominanceTest() {
+  const all = STRATA.flatMap(s => plants[s]).filter(r => r.sci && r.indicator);
+  if (!all.length) {
+    document.getElementById('dom-result').textContent = 'Add plants to calculate.';
+    document.getElementById('dom-badge').textContent = '—';
+    document.getElementById('dom-badge').style.background = 'var(--surface3)';
+    document.getElementById('dom-badge').style.color = 'var(--text3)';
+    document.getElementById('sum-dom').textContent = '—';
+    return null;
+  }
+  const doms = all.filter(r => r.dominant);
+  const totalDomCov = doms.reduce((s,r) => s+(parseFloat(r.cover)||0), 0);
+  const wetDomCov = doms.filter(r => WET_IND.has(r.indicator)).reduce((s,r) => s+(parseFloat(r.cover)||0), 0);
+  const pct = totalDomCov > 0 ? wetDomCov/totalDomCov*100 : 0;
+  const pass = pct > 50;
+  const badge = document.getElementById('dom-badge');
+  badge.textContent = pass ? 'PASS' : 'FAIL';
+  badge.style.background = pass ? 'var(--ok)' : 'var(--danger)';
+  badge.style.color = pass ? 'var(--ok-text)' : 'var(--danger-text)';
+  const detail = [
+    `Dominant species: ${doms.length} of ${all.length} total`,
+    `Wetland-indicator dominants: ${doms.filter(r=>WET_IND.has(r.indicator)).length}`,
+    `Wetland cover / total dominant cover: ${wetDomCov.toFixed(0)}% / ${totalDomCov.toFixed(0)}% = ${pct.toFixed(1)}%`,
+    `Threshold: >50% → ${pass ? 'PASS' : 'FAIL'}`
+  ].join('<br>');
+  document.getElementById('dom-result').innerHTML = detail;
+  document.getElementById('sum-dom').innerHTML = detail;
+  return {pass, pct, doms};
+}
+
+// ═══════════════════════════════════════════════════════
+//  PREVALENCE INDEX
+// ═══════════════════════════════════════════════════════
+function calcPrevalenceIndex() {
+  const all = STRATA.flatMap(s => plants[s]).filter(r => r.sci && r.indicator && (parseFloat(r.cover)||0) > 0);
+  if (!all.length) {
+    document.getElementById('pi-result').textContent = 'Add plants with cover to calculate.';
+    document.getElementById('pi-badge').textContent = '—';
+    document.getElementById('pi-badge').style.background = 'var(--surface3)';
+    document.getElementById('pi-badge').style.color = 'var(--text3)';
+    document.getElementById('sum-pi').textContent = '—';
+    return null;
+  }
+  let wsum = 0, tcov = 0;
+  const bd = {OBL:0,FACW:0,FAC:0,FACU:0,UPL:0};
+  for (const r of all) {
+    const w = PREV_W[r.indicator]; const c = parseFloat(r.cover)||0;
+    if (w) { wsum += w*c; tcov += c; bd[r.indicator] = (bd[r.indicator]||0)+c; }
+  }
+  const pi = tcov > 0 ? wsum/tcov : 0;
+  const pass = pi <= 3.0;
+  const badge = document.getElementById('pi-badge');
+  badge.textContent = `PI = ${pi.toFixed(2)}`;
+  badge.style.background = pass ? 'var(--ok)' : 'var(--danger)';
+  badge.style.color = pass ? 'var(--ok-text)' : 'var(--danger-text)';
+  const detail = [
+    `Prevalence Index = ${pi.toFixed(2)} (≤3.0 = hydrophytic)`,
+    Object.entries(bd).map(([k,v]) => `${k}: ${v.toFixed(0)}% cover`).join(' | '),
+    `Result: ${pass ? 'PASS — hydrophytic vegetation' : 'FAIL — not hydrophytic'}`
+  ].join('<br>');
+  document.getElementById('pi-result').innerHTML = detail;
+  document.getElementById('sum-pi').innerHTML = detail;
+  return {pass, pi};
+}
+
+// ═══════════════════════════════════════════════════════
+//  SUMMARY
+// ═══════════════════════════════════════════════════════
+function updateSummary() {
+  const domR = calcDominanceTest();
+  const piR  = calcPrevalenceIndex();
+  const vegPass  = domR && domR.pass;
+  const soilPass = document.getElementById('hydric-present').checked;
+  const hydPass  = document.getElementById('hydro-present').checked;
+
+  const setCard = (id, pass, val, detail) => {
+    document.getElementById(id).className = 'sum-card ' + (pass===null?'unk':pass?'pass':'fail');
+    document.getElementById(id + '-val').textContent = pass===null?'—':pass?'YES':'NO';
+    document.getElementById(id + '-detail').textContent = detail;
+  };
+  setCard('sum-veg', domR?vegPass:null, null, domR ? `Dominance Test: ${vegPass?'PASS':'FAIL'} (${(domR.pct||0).toFixed(1)}% wetland-indicator dominants)` : 'No vegetation entered.');
+  setCard('sum-soil', soilPass, null, soilPass ? 'Hydric soils confirmed.' : 'Hydric soils not confirmed.');
+  setCard('sum-hydro', hydPass, null, hydPass ? 'Wetland hydrology confirmed.' : 'Wetland hydrology not confirmed.');
+
+  const box = document.getElementById('det-box');
+  const val = document.getElementById('det-val');
+  if (vegPass && soilPass && hydPass) { box.className='det-box wetland'; val.textContent='WETLAND'; }
+  else if (domR && !vegPass && !soilPass && !hydPass) { box.className='det-box upland'; val.textContent='UPLAND'; }
+  else { box.className='det-box unk'; val.textContent = domR?'INCONCLUSIVE':'PENDING'; }
+}
+
+// ═══════════════════════════════════════════════════════
+//  SOIL LAYERS
+// ═══════════════════════════════════════════════════════
+const MUNSELL = [
+  '10YR 2/1','10YR 2/2','10YR 3/1','10YR 3/2','10YR 3/3','10YR 4/1','10YR 4/2','10YR 4/3','10YR 4/4',
+  '10YR 5/1','10YR 5/2','10YR 5/3','10YR 5/4','10YR 6/1','10YR 6/2','10YR 6/3','10YR 6/4',
+  '2.5Y 2/1','2.5Y 2/2','2.5Y 3/1','2.5Y 3/2','2.5Y 4/1','2.5Y 4/2','2.5Y 4/3','2.5Y 4/4',
+  '2.5Y 5/1','2.5Y 5/2','2.5Y 5/3','2.5Y 6/1','2.5Y 6/2','2.5Y 6/3',
+  '5Y 2/1','5Y 2/2','5Y 3/1','5Y 3/2','5Y 4/1','5Y 4/2','5Y 5/1','5Y 5/2','5Y 6/1','5Y 6/2',
+  '5GY 4/1','5GY 5/1','5GY 6/1','5G 4/1','5G 5/1','5BG 4/1','5BG 5/1',
+  'N 2/0','N 3/0','N 4/0','N 5/0','N 6/0',
+  '10YR 4/6','10YR 5/6','10YR 5/8','7.5YR 4/6','7.5YR 5/6','7.5YR 5/8',
+  '5YR 3/4','5YR 4/4','5YR 4/6','2.5YR 3/4','2.5YR 4/6','10R 3/6'
+];
+const TEXTURES = ['Sand','Loamy Sand','Sandy Loam','Loam','Silt Loam','Silt','Sandy Clay Loam','Clay Loam','Silty Clay Loam','Sandy Clay','Silty Clay','Clay','Mucky Loam','Mucky Clay','Muck'];
+
+function addLayer() {
+  const id = ++layerCtr;
+  const l = {id, depth:'', mc:'', mp:'', rc:'', rp:'', rt:'', rl:'', tex:'', remarks:''};
+  layers.push(l);
+  renderLayer(l);
+  markDirty();
+}
+
+function renderLayer(l) {
+  const list = document.getElementById('layers-list');
+  const num = layers.indexOf(l) + 1;
+  const mOpts = (val) => ['', ...MUNSELL].map(c => `<option value="${c}" ${l[val]===c?'selected':''}>${c||'—'}</option>`).join('');
+  const tOpts = ['', ...TEXTURES].map(t => `<option value="${t}" ${l.tex===t?'selected':''}>${t||'— Texture —'}</option>`).join('');
+  const typeOpts = [['','— Type —'],['C','C – Concentration'],['D','D – Depletion'],['RM','RM – Reduced Matrix'],['CS','CS – Coated Sand']].map(([v,lb])=>`<option value="${v}" ${l.rt===v?'selected':''}>${lb}</option>`).join('');
+  const locOpts  = [['','— Loc —'],['PL','PL – Pore Lining'],['M','M – Matrix'],['PL/M','PL/M – Both']].map(([v,lb])=>`<option value="${v}" ${l.rl===v?'selected':''}>${lb}</option>`).join('');
+
+  const div = document.createElement('div');
+  div.className = 'layer-row';
+  div.id = 'layer-' + l.id;
+  div.innerHTML = `
+    <div class="layer-top">
+      <span class="layer-num">${num}.</span>
+      <div style="flex:1">
+        <div class="sm-label">Depth Range (inches, e.g. 0–12)</div>
+        <input class="sm-input" type="text" placeholder="0–12" value="${l.depth||''}"
+          oninput="lu(${l.id},'depth',this.value)" style="width:100%">
+      </div>
+      <button style="background:none;border:none;color:var(--text3);font-size:20px;cursor:pointer;padding:0 6px" onclick="removeLayer(${l.id})">×</button>
+    </div>
+    <div class="layer-grid3" style="margin-bottom:5px">
+      <div><div class="sm-label">Matrix Color (moist)</div><select class="sm-input" onchange="lu(${l.id},'mc',this.value)">${mOpts('mc')}</select></div>
+      <div><div class="sm-label">Matrix %</div><input class="sm-input" type="number" placeholder="%" value="${l.mp||''}" oninput="lu(${l.id},'mp',this.value)" min="0" max="100" style="text-align:center"></div>
+      <div><div class="sm-label">Texture</div><select class="sm-input" onchange="lu(${l.id},'tex',this.value)">${tOpts}</select></div>
+    </div>
+    <div class="layer-grid4">
+      <div><div class="sm-label">Redox Color (moist)</div><select class="sm-input" onchange="lu(${l.id},'rc',this.value)">${mOpts('rc')}</select></div>
+      <div><div class="sm-label">Redox %</div><input class="sm-input" type="number" placeholder="%" value="${l.rp||''}" oninput="lu(${l.id},'rp',this.value)" min="0" max="100" style="text-align:center"></div>
+      <div><div class="sm-label">Type¹</div><select class="sm-input" onchange="lu(${l.id},'rt',this.value)">${typeOpts}</select></div>
+      <div><div class="sm-label">Loc²</div><select class="sm-input" onchange="lu(${l.id},'rl',this.value)">${locOpts}</select></div>
+    </div>
+    <div style="margin-top:5px"><div class="sm-label">Layer Remarks</div><input class="sm-input" type="text" value="${l.remarks||''}" oninput="lu(${l.id},'remarks',this.value)" style="width:100%"></div>
+    <div class="layer-foot">¹ C=Concentration  D=Depletion  RM=Reduced Matrix  CS=Covered/Coated Sand Grains &nbsp;|&nbsp; ² PL=Pore Lining  M=Matrix</div>`;
+  list.appendChild(div);
+}
+
+function removeLayer(id) {
+  layers = layers.filter(l => l.id !== id);
+  document.getElementById('layer-' + id)?.remove();
+  document.querySelectorAll('.layer-num').forEach((el,i) => el.textContent = (i+1) + '.');
+  markDirty();
+}
+function lu(id, f, v) { const l=layers.find(l=>l.id===id); if(l){l[f]=v;markDirty();} }
+
+// ═══════════════════════════════════════════════════════
+//  GPS + SOIL DATA LOOKUP
+// ═══════════════════════════════════════════════════════
+function getGPS() {
+  if (!navigator.geolocation) { toast('GPS not supported'); return; }
+  setStatus('loading','Getting GPS…');
+  navigator.geolocation.getCurrentPosition(pos => {
+    document.getElementById('dp-lat').value = pos.coords.latitude.toFixed(6);
+    document.getElementById('dp-lon').value = pos.coords.longitude.toFixed(6);
+    setStatus('ok', `✓ GPS (±${Math.round(pos.coords.accuracy)}m)`);
+    markDirty();
+    lookupSoilData();
+  }, err => setStatus('err','GPS failed – check permissions'));
+}
+
+async function lookupSoilData() {
+  const lat = parseFloat(document.getElementById('dp-lat').value);
+  const lon = parseFloat(document.getElementById('dp-lon').value);
+  if (!lat || !lon) { setStatus('err','Enter coordinates first'); return; }
+  setStatus('loading','Looking up soil data…');
+  try {
+    // NRCS Soil Data Access REST API — POST.rest endpoint
+    const query = `SELECT mu.muname, mu.musym, mu.mukey, l.lkey, l.areasymbol
+      FROM legend l
+      INNER JOIN mapunit mu ON mu.lkey = l.lkey
+      INNER JOIN mupolygon mp ON mp.mukey = mu.mukey
+      WHERE mu.mukey = (
+        SELECT TOP 1 mukey FROM SDA_Get_Mukey_from_intersection_with_WktWgs84(
+          'point(${lon} ${lat})'
+        )
+      ) AND l.areasymbol != 'US'`;
+    const resp = await fetch('https://SDMDataAccess.sc.egov.usda.gov/Tabular/post.rest', {
+      method: 'POST',
+      headers: {'Content-Type':'application/x-www-form-urlencoded'},
+      body: `query=${encodeURIComponent(query)}&format=JSON`
+    });
+    const data = await resp.json();
+    const rows = data?.Table;
+    if (rows && rows.length > 0) {
+      const [muname, musym, mukey, lkey, areasymbol] = rows[0];
+      document.getElementById('dp-mapunit').value = `${muname} (${musym})`;
+      // Also try to get LRR from areasymbol
+      await lookupLRR(lat, lon, mukey);
+      setStatus('ok', `✓ ${muname}`);
+      markDirty();
+    } else {
+      setStatus('err', 'No SSURGO data at these coordinates');
+    }
+  } catch(e) {
+    setStatus('err', 'Soil lookup failed — check connection');
+  }
+}
+
+async function lookupLRR(lat, lon, mukey) {
+  // Get LRR from component table
+  try {
+    const q2 = `SELECT TOP 1 c.taxtempcl, co.lrrdescription, c.majcompflag
+      FROM component c
+      INNER JOIN legend co ON co.lkey = (SELECT lkey FROM mapunit WHERE mukey='${mukey}')
+      WHERE c.mukey='${mukey}' AND c.majcompflag='Yes'`;
+    // Simpler: derive LRR from lat/lon using known Great Plains bounds
+    // GP region covers portions of CO,KS,MN,MT,NE,NM,ND,OK,SD,TX,WY
+    // LRR F: Northern GP (~46-49°N), G: Western GP (~37-46°N), H: Central GP (~35-42°N), 
+    // I: SW Plateaus (~30-35°N), J: SW Prairies (~27-33°N TX/OK)
+    let lrr = '';
+    if (lat > 45) lrr = 'LRR F (Northern Great Plains)';
+    else if (lat > 40) lrr = 'LRR G (Western Great Plains)';
+    else if (lat > 36) lrr = 'LRR H (Central Great Plains)';
+    else if (lat > 32) lrr = 'LRR I (Southwest Plateaus & Plains)';
+    else lrr = 'LRR J (Southwestern Prairies)';
+    const lrrField = document.getElementById('dp-lrr');
+    if (!lrrField.value) lrrField.value = lrr;
+  } catch(e) {}
+}
+
+function setStatus(type, msg) {
+  const el = document.getElementById('soil-status');
+  el.textContent = msg;
+  el.className = 'autofill-status ' + type;
+}
+function clearSoilAuto() { setStatus('', 'Enter coords then tap Lookup Soil'); }
+
+// ═══════════════════════════════════════════════════════
+//  PROJECT MANAGEMENT
+// ═══════════════════════════════════════════════════════
+const FORM_TYPES = [
+  'Great Plains (ENG 6116-5)',
+  'Midwest (ENG 6116-3)',
+  'Atlantic & Gulf Coastal Plain (ENG 6116-1)',
+  'Eastern Mountains & Piedmont (ENG 6116-2)',
+  'North Central & NE (ENG 6116-4)',
+  'Caribbean Islands (ENG 6116-6)',
+  'Alaska (ENG 6116-7)',
+  'Western Mountains, Valleys & Coast (ENG 6116-9)',
+];
+
+function showNewProjectModal() {
+  document.getElementById('modal-title').textContent = 'New Project';
+  document.getElementById('modal-body').innerHTML = `
+    <div class="field"><label>Project / Site Name *</label><input type="text" id="m-project" placeholder="e.g. Orion DC" autofocus></div>
+    <div class="field"><label>Applicant / Owner</label><input type="text" id="m-applicant" placeholder="Tamworth Partners, Ltd."></div>
+    <div class="field"><label>Investigator(s)</label><input type="text" id="m-investigator" placeholder="J. Smith, W. Jones"></div>
+    <div class="row2">
+      <div class="field"><label>County</label><input type="text" id="m-county" placeholder="County"></div>
+      <div class="field"><label>State</label>
+        <select id="m-state">
+          <option value="TX" selected>TX</option>
+          <option>OK</option><option>KS</option><option>NE</option><option>SD</option>
+          <option>ND</option><option>CO</option><option>WY</option><option>MT</option>
+          <option>MN</option><option>NM</option><option>LA</option><option>AR</option>
+        </select>
+      </div>
+    </div>
+    <div class="field"><label>USACE Data Form Type</label>
+      <select id="m-formtype">${FORM_TYPES.map(t=>`<option>${t}</option>`).join('')}</select>
+    </div>
+    <button class="modal-btn primary" onclick="createProject()">Create Project</button>
+    <div class="modal-cancel" onclick="closeModal()">Cancel</div>`;
+  openModal();
+}
+
+function createProject() {
+  const name = document.getElementById('m-project').value.trim();
+  if (!name) { toast('Project name required'); return; }
+  const id = 'proj-' + Date.now();
+  projects[id] = {
+    name,
+    applicant: document.getElementById('m-applicant').value.trim(),
+    investigator: document.getElementById('m-investigator').value.trim(),
+    county: document.getElementById('m-county').value.trim(),
+    state: document.getElementById('m-state').value,
+    form_type: document.getElementById('m-formtype').value,
+    created: new Date().toISOString(),
+    dps: {}
+  };
+  saveProjects();
+  closeModal();
+  renderProjectsList();
+  openProject(id);
+  toast('✓ Project created');
+}
+
+function openProject(id) {
+  currentProjectId = id;
+  currentDPId = null;
+  const proj = projects[id];
+  document.getElementById('topbar-title').textContent = proj.name;
+  document.getElementById('topbar-sub').textContent = proj.form_type;
+  document.getElementById('new-proj-btn').textContent = '+ Data Point';
+  document.getElementById('new-proj-btn').onclick = () => showNewDPModal(id);
+  document.getElementById('save-btn').style.display = 'none';
+  document.getElementById('export-btn').style.display = 'none';
+  renderDPList(id);
+  switchTab('projects');
+}
+
+function showNewDPModal(projId) {
+  document.getElementById('modal-title').textContent = 'New Data Point';
+  document.getElementById('modal-body').innerHTML = `
+    <div class="field"><label>Sample Point ID *</label><input type="text" id="m-dpid" placeholder="DP-01" autofocus></div>
+    <button class="modal-btn primary" onclick="createDP('${projId}')">Create Data Point</button>
+    <div class="modal-cancel" onclick="closeModal()">Cancel</div>`;
+  openModal();
+}
+
+function createDP(projId) {
+  const dpid = document.getElementById('m-dpid').value.trim();
+  if (!dpid) { toast('Sample ID required'); return; }
+  const id = 'dp-' + Date.now();
+  const proj = projects[projId];
+  proj.dps[id] = { dp_id: dpid, created: new Date().toISOString(), determination: 'PENDING' };
+  saveProjects();
+  closeModal();
+  loadDP(projId, id);
+}
+
+function loadDP(projId, dpId) {
+  currentProjectId = projId;
+  currentDPId = dpId;
+  const proj = projects[projId];
+  const dp = proj.dps[dpId];
+
+  // Reset all UI
+  resetDPUI();
+
+  // Fill project-level fields (auto-fill from project)
+  document.getElementById('topbar-title').textContent = `${proj.name} › ${dp.dp_id}`;
+  document.getElementById('topbar-sub').textContent = proj.form_type;
+  document.getElementById('save-btn').style.display = '';
+  document.getElementById('export-btn').style.display = '';
+  document.getElementById('new-proj-btn').textContent = '+ Data Point';
+  document.getElementById('new-proj-btn').onclick = () => showNewDPModal(projId);
+
+  // Populate fields from saved dp data
+  const sv = (id, val) => { const el=document.getElementById(id); if(el&&val!==undefined) el.value=val||''; };
+  const sc = (id, val) => { const el=document.getElementById(id); if(el) el.checked=!!val; };
+
+  sv('dp-id', dp.dp_id);
+  sv('dp-date', dp.date || new Date().toISOString().slice(0,10));
+  sv('dp-time', dp.time);
+  sv('dp-normal', dp.normal_conditions);
+  sv('dp-lat', dp.lat); sv('dp-lon', dp.lon); sv('dp-datum', dp.datum);
+  sv('dp-landform', dp.landform); sv('dp-relief', dp.relief); sv('dp-slope', dp.slope);
+  sv('dp-lrr', dp.lrr); sv('dp-mapunit', dp.mapunit);
+  sc('dp-vdist', dp.veg_disturbed); sc('dp-sdist', dp.soil_disturbed);
+  sc('dp-hdist', dp.hydro_disturbed); sc('dp-natprob', dp.nat_problematic);
+
+  // Plants
+  if (dp.plants) {
+    const pdata = JSON.parse(dp.plants);
+    pdata.forEach(p => {
+      const id2 = ++plantCtr;
+      const row = {...p, id:id2};
+      plants[p.stratum].push(row);
+      renderPlantRow(p.stratum, row);
+      const inp = document.querySelector(`#pr-${id2} .plant-search`);
+      if (inp) inp.value = p.sci;
+    });
+  }
+  // Plot sizes
+  STRATA.forEach(s => {
+    const el = document.getElementById('plot-' + s);
+    if (el && dp['plot_'+s]) el.value = dp['plot_'+s];
+  });
+  sv('bare-ground', dp.bare_ground); sv('veg-remarks', dp.veg_remarks);
+
+  // Layers
+  if (dp.layers) {
+    JSON.parse(dp.layers).forEach(l => {
+      const lid = ++layerCtr;
+      const lo = {...l, id:lid};
+      layers.push(lo); renderLayer(lo);
+    });
+  }
+  sv('restrict-type', dp.restrict_type); sv('restrict-depth', dp.restrict_depth);
+  sc('hydric-present', dp.hydric_soils_present); sv('soil-remarks', dp.soil_remarks);
+
+  // Hydric indicators
+  if (dp.hydric_indicators) {
+    HYDRIC_DEFS.forEach((d,i) => {
+      const key = `${d[0]}|${d[1]}|${i}`;
+      if ((dp.hydric_indicators||'').includes(key)) {
+        hydricChecked[key] = true;
+        const el = document.getElementById('h-'+i); if(el) el.checked=true;
+      }
+    });
+  }
+
+  // Hydro indicators
+  if (dp.hydro_indicators) {
+    HYDRO_DEFS.forEach((d,i) => {
+      const key = `${d[0]}|${i}`;
+      if ((dp.hydro_indicators||'').includes(key)) {
+        hydroChecked[key] = true;
+        const el = document.getElementById('hd-'+i); if(el) el.checked=true;
+      }
+    });
+  }
+  if (dp.fobs_sw) setFobs('sw', dp.fobs_sw, false);
+  if (dp.fobs_wt) setFobs('wt', dp.fobs_wt, false);
+  if (dp.fobs_sat) setFobs('sat', dp.fobs_sat, false);
+  sv('sw-depth', dp.sw_depth); sv('wt-depth', dp.wt_depth); sv('sat-depth', dp.sat_depth);
+  sc('hydro-present', dp.wetland_hydrology_present);
+  sv('hydro-recorded', dp.hydro_recorded); sv('hydro-remarks', dp.hydro_remarks);
+  sv('final-remarks', dp.final_remarks);
+
+  calcAndApplyDominance();
+  updateSummary();
+  dirty = false;
+  switchTab('setup');
+}
+
+function resetDPUI() {
+  // Clear plants
+  STRATA.forEach(s => { plants[s]=[]; document.getElementById('plants-'+s).innerHTML=''; });
+  plantCtr = 0;
+  // Clear layers
+  layers=[]; layerCtr=0; document.getElementById('layers-list').innerHTML='';
+  // Clear hydric/hydro
+  hydricChecked={}; hydroChecked={};
+  document.querySelectorAll('#hydric-grid input[type=checkbox]').forEach(el=>el.checked=false);
+  document.querySelectorAll('#hydro-grid input[type=checkbox]').forEach(el=>el.checked=false);
+  // Clear fobs
+  fobs={sw:null,wt:null,sat:null};
+  ['sw','wt','sat'].forEach(f=>['y','n'].forEach(v=>{const b=document.getElementById(f+'-'+v);if(b) b.className='yn '+v;}));
+  // Clear all inputs
+  document.querySelectorAll('#panel-setup input, #panel-setup select, #panel-setup textarea').forEach(el=>{
+    if(el.type==='checkbox') el.checked=false; else el.value='';
+  });
+  document.querySelectorAll('#panel-veg input:not(.plant-search), #panel-veg textarea').forEach(el=>{ if(el.type==='checkbox') el.checked=false; else el.value=''; });
+  document.querySelectorAll('#panel-soil input, #panel-soil textarea').forEach(el=>{ if(el.type==='checkbox') el.checked=false; else el.value=''; });
+  document.querySelectorAll('#panel-hydro input, #panel-hydro textarea').forEach(el=>{ if(el.type==='checkbox') el.checked=false; else el.value=''; });
+  // Reset plot defaults
+  STRATA.forEach(s => { const el=document.getElementById('plot-'+s); if(el) el.value=PLOT_DEFAULTS[s]; });
+  // Reset toggles/dropdowns
+  const dn = document.getElementById('dp-normal'); if(dn) dn.value='Yes';
+  const dd = document.getElementById('dp-datum'); if(dd) dd.value='WGS84';
+}
+
+// ═══════════════════════════════════════════════════════
+//  SAVE DATA POINT
+// ═══════════════════════════════════════════════════════
+function g(id) { const el=document.getElementById(id); return el?el.value:''; }
+function gc(id) { const el=document.getElementById(id); return el?el.checked:false; }
+
+function collectDP() {
+  const domR = calcDominanceTest();
+  const piR  = calcPrevalenceIndex();
+  const vegPass  = domR && domR.pass;
+  const soilPass = gc('hydric-present');
+  const hydPass  = gc('hydro-present');
+  let det = 'PENDING';
+  if (domR) det = vegPass&&soilPass&&hydPass?'WETLAND':!vegPass&&!soilPass&&!hydPass?'UPLAND':'INCONCLUSIVE';
+
+  return {
+    dp_id: g('dp-id'), date: g('dp-date'), time: g('dp-time'),
+    normal_conditions: g('dp-normal'),
+    lat: g('dp-lat'), lon: g('dp-lon'), datum: g('dp-datum'),
+    landform: g('dp-landform'), relief: g('dp-relief'), slope: g('dp-slope'),
+    lrr: g('dp-lrr'), mapunit: g('dp-mapunit'),
+    veg_disturbed: gc('dp-vdist'), soil_disturbed: gc('dp-sdist'),
+    hydro_disturbed: gc('dp-hdist'), nat_problematic: gc('dp-natprob'),
+    plants: JSON.stringify(STRATA.flatMap(s => plants[s].map(r => ({stratum:s, sci:r.sci, common:r.common, indicator:r.indicator, cover:r.cover, dominant:r.dominant})))),
+    'plot_Tree': g('plot-Tree'), 'plot_Sapling/Shrub': g('plot-Sapling/Shrub'), 'plot_Herb': g('plot-Herb'), 'plot_Woody Vine': g('plot-Woody Vine'),
+    bare_ground: g('bare-ground'), veg_remarks: g('veg-remarks'),
+    dominance_test_pass: domR?domR.pass:'', dominance_pct: domR?domR.pct.toFixed(1):'',
+    prevalence_index: piR?piR.pi.toFixed(2):'', prevalence_pass: piR?piR.pass:'',
+    layers: JSON.stringify(layers.map(l=>({depth:l.depth,mc:l.mc,mp:l.mp,rc:l.rc,rp:l.rp,rt:l.rt,rl:l.rl,tex:l.tex,remarks:l.remarks}))),
+    hydric_indicators: HYDRIC_DEFS.map((d,i)=>`${d[0]}|${d[1]}|${i}`).filter(k=>hydricChecked[k]).join('; '),
+    restrict_type: g('restrict-type'), restrict_depth: g('restrict-depth'),
+    hydric_soils_present: soilPass, soil_remarks: g('soil-remarks'),
+    hydro_indicators: HYDRO_DEFS.map((d,i)=>`${d[0]}|${i}`).filter(k=>hydroChecked[k]).join('; '),
+    fobs_sw: fobs.sw, fobs_wt: fobs.wt, fobs_sat: fobs.sat,
+    sw_depth: g('sw-depth'), wt_depth: g('wt-depth'), sat_depth: g('sat-depth'),
+    wetland_hydrology_present: hydPass,
+    hydro_recorded: g('hydro-recorded'), hydro_remarks: g('hydro-remarks'),
+    hydrophytic_veg_present: vegPass, hydric_soils_present_final: soilPass,
+    wetland_hydrology_present_final: hydPass, determination: det,
+    final_remarks: g('final-remarks'),
+    updated: new Date().toISOString()
+  };
+}
+
+function saveCurrentDP() {
+  if (!currentProjectId || !currentDPId) { toast('No data point open'); return; }
+  const data = collectDP();
+  const proj = projects[currentProjectId];
+  proj.dps[currentDPId] = { ...proj.dps[currentDPId], ...data };
+  saveProjects();
+  dirty = false;
+  toast('✓ Saved: ' + (data.dp_id || 'Data Point'));
+  renderDPList(currentProjectId);
+}
+
+// ═══════════════════════════════════════════════════════
+//  CSV EXPORT
+// ═══════════════════════════════════════════════════════
+function exportCSV() {
+  if (!currentProjectId || !currentDPId) { toast('No data point open'); return; }
+  const proj = projects[currentProjectId];
+  const dp = collectDP();
+
+  const esc = v => {
+    v = String(v??'');
+    return (v.includes(',') || v.includes('"') || v.includes('\n')) ? '"'+v.replace(/"/g,'""')+'"' : v;
+  };
+
+  const headers = [
+    // Project-level (auto-filled)
+    'project','applicant','investigator','county','state','form_type',
+    // DP fields
+    'dp_id','date','time','normal_conditions','lat','lon','datum',
+    'landform','relief','slope','lrr','mapunit',
+    'veg_disturbed','soil_disturbed','hydro_disturbed','nat_problematic',
+    'plot_Tree','plot_Sapling/Shrub','plot_Herb','plot_Woody Vine','bare_ground',
+    'dominance_test_pass','dominance_pct','prevalence_index','prevalence_pass',
+    'hydric_indicators','restrict_type','restrict_depth','hydric_soils_present','soil_remarks',
+    'hydro_indicators','fobs_sw','sw_depth','fobs_wt','wt_depth','fobs_sat','sat_depth',
+    'wetland_hydrology_present','hydro_recorded','hydro_remarks',
+    'hydrophytic_veg_present','hydric_soils_present_final','wetland_hydrology_present_final',
+    'determination','final_remarks','updated',
+    // Plant columns
+    'plant_stratum','plant_sci','plant_common','plant_indicator','plant_cover','plant_dominant'
+  ];
+
+  const rows = [headers.map(esc).join(',')];
+  const projVals = [proj.name, proj.applicant, proj.investigator, proj.county, proj.state, proj.form_type];
+  const dpVals = headers.slice(6, headers.length - 6).map(h => esc(String(dp[h]??'')));
+  const plist = JSON.parse(dp.plants || '[]');
+
+  if (!plist.length) {
+    rows.push([...projVals.map(esc), ...dpVals, '','','','','',''].join(','));
+  } else {
+    plist.forEach((p, i) => {
+      const pv = [p.stratum,p.sci,p.common,p.indicator,p.cover,p.dominant].map(v=>esc(String(v??'')));
+      if (i === 0) {
+        rows.push([...projVals.map(esc), ...dpVals, ...pv].join(','));
+      } else {
+        const blank = headers.slice(6, headers.length-6).map(()=>'');
+        rows.push([...projVals.map(esc), esc(dp.dp_id), esc(dp.date), ...blank.slice(2), ...pv].join(','));
+      }
+    });
+  }
+
+  // Layers section
+  const ldata = JSON.parse(dp.layers || '[]');
+  if (ldata.length) {
+    rows.push('');
+    rows.push(['LAYER_SECTION','dp_id','date','depth','matrix_color','matrix_pct','redox_color','redox_pct','redox_type','redox_loc','texture','remarks'].map(esc).join(','));
+    ldata.forEach(l => rows.push(['LAYER', esc(dp.dp_id), esc(dp.date), esc(l.depth), esc(l.mc), esc(l.mp), esc(l.rc), esc(l.rp), esc(l.rt), esc(l.rl), esc(l.tex), esc(l.remarks)].join(',')));
+  }
+
+  const csv = rows.join('\r\n');
+  const blob = new Blob([csv], {type:'text/csv;charset=utf-8;'});
+  const url = URL.createObjectURL(blob);
+  const fname = `USACE_${proj.name.replace(/\s+/g,'_')}_${dp.dp_id}_${dp.date||'nodate'}.csv`;
+  const a = document.createElement('a');
+  a.href=url; a.download=fname; a.click();
+  URL.revokeObjectURL(url);
+  toast('✓ Exported: ' + fname);
+}
+
+// ═══════════════════════════════════════════════════════
+//  RENDER LISTS
+// ═══════════════════════════════════════════════════════
+function renderProjectsList() {
+  const list = document.getElementById('projects-list');
+  const ids = Object.keys(projects).reverse();
+  if (!ids.length) {
+    list.innerHTML = '<div class="empty"><div class="empty-icon">📁</div><p>No projects yet.<br>Tap <strong>+ Project</strong> to create one.</p></div>';
+    return;
+  }
+  list.innerHTML = '';
+  ids.forEach(id => {
+    const p = projects[id];
+    const dpCount = Object.keys(p.dps||{}).length;
+    const card = document.createElement('div');
+    card.className = 'proj-card';
+    card.innerHTML = `
+      <div class="proj-dot"></div>
+      <div class="proj-info">
+        <div class="proj-name">${p.name}</div>
+        <div class="proj-meta">${p.form_type} · ${p.county||''}${p.county&&p.state?', ':''}${p.state||''} · ${dpCount} data point${dpCount!==1?'s':''}</div>
+      </div>
+      <button class="proj-del" onclick="event.stopPropagation();deleteProject('${id}')">🗑</button>`;
+    card.onclick = () => openProject(id);
+    list.appendChild(card);
+  });
+}
+
+function renderDPList(projId) {
+  const proj = projects[projId];
+  const list = document.getElementById('projects-list');
+  list.innerHTML = `
+    <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">
+      <button class="btn secondary sm" onclick="renderProjectsList();document.getElementById('topbar-title').textContent='USACE Wetland Forms';document.getElementById('topbar-sub').textContent='Select a project';document.getElementById('new-proj-btn').textContent='+ Project';document.getElementById('new-proj-btn').onclick=showNewProjectModal;">← Projects</button>
+      <span style="font-size:13px;font-weight:600;color:var(--text)">${proj.name}</span>
+    </div>`;
+  const dpIds = Object.keys(proj.dps).reverse();
+  if (!dpIds.length) {
+    list.innerHTML += '<div class="empty"><div class="empty-icon">📋</div><p>No data points yet.<br>Tap <strong>+ Data Point</strong> to begin.</p></div>';
+  } else {
+    dpIds.forEach(id => {
+      const dp = proj.dps[id];
+      const det = dp.determination || 'PENDING';
+      const dotClass = det==='WETLAND'?'wetland':det==='UPLAND'?'upland':'unk';
+      const card = document.createElement('div');
+      card.className = 'dp-card';
+      card.innerHTML = `
+        <div class="dp-dot ${dotClass}"></div>
+        <div class="dp-info">
+          <div class="dp-name">${dp.dp_id||'Unnamed'}</div>
+          <div class="dp-meta">${dp.date||'—'} · <strong style="color:${det==='WETLAND'?'var(--ok-text)':det==='UPLAND'?'var(--danger-text)':'var(--text3)'}">${det}</strong></div>
+        </div>
+        <button style="background:none;border:none;color:var(--text3);font-size:17px;padding:4px 8px;cursor:pointer" onclick="event.stopPropagation();deleteDP('${projId}','${id}')">🗑</button>`;
+      card.onclick = () => loadDP(projId, id);
+      list.appendChild(card);
+    });
+  }
+}
+
+function deleteProject(id) {
+  if (!confirm(`Delete project "${projects[id]?.name}"? This cannot be undone.`)) return;
+  delete projects[id];
+  saveProjects();
+  renderProjectsList();
+  toast('Project deleted');
+}
+
+function deleteDP(projId, dpId) {
+  const dp = projects[projId]?.dps?.[dpId];
+  if (!confirm(`Delete data point "${dp?.dp_id}"?`)) return;
+  delete projects[projId].dps[dpId];
+  saveProjects();
+  renderDPList(projId);
+  toast('Data point deleted');
+}
+
+// ═══════════════════════════════════════════════════════
+//  STORAGE
+// ═══════════════════════════════════════════════════════
+function saveProjects() { localStorage.setItem('wetland_projects_v2', JSON.stringify(projects)); }
+function loadAllData() {
+  try { projects = JSON.parse(localStorage.getItem('wetland_projects_v2') || '{}'); }
+  catch(e) { projects = {}; }
+  renderProjectsList();
+}
+
+// ═══════════════════════════════════════════════════════
+//  MODAL
+// ═══════════════════════════════════════════════════════
+function openModal() { document.getElementById('modal-overlay').classList.add('open'); }
+function closeModal() { document.getElementById('modal-overlay').classList.remove('open'); }
+
+// ═══════════════════════════════════════════════════════
+//  TAB NAVIGATION
+// ═══════════════════════════════════════════════════════
+function switchTab(tab) {
+  document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  document.getElementById('panel-' + tab).classList.add('active');
+  document.getElementById('tab-' + tab).classList.add('active');
+  document.getElementById('main').scrollTop = 0;
+  if (tab === 'summary') updateSummary();
+}
+
+// ═══════════════════════════════════════════════════════
+//  DIRTY FLAG
+// ═══════════════════════════════════════════════════════
+function markDirty() { dirty = true; }
+
+// ═══════════════════════════════════════════════════════
+//  TOAST
+// ═══════════════════════════════════════════════════════
+let toastTimer;
+function toast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => t.classList.remove('show'), 2600);
+}
+
+// ═══════════════════════════════════════════════════════
+//  SERVICE WORKER
+// ═══════════════════════════════════════════════════════
+if ('serviceWorker' in navigator) navigator.serviceWorker.register('./sw.js').catch(()=>{});
+
+// ═══════════════════════════════════════════════════════
+//  INIT
+// ═══════════════════════════════════════════════════════
+loadPlants();
+</script>
+</body>
+</html>
